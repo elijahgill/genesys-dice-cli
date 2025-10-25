@@ -5,6 +5,9 @@ import (
 	"math/rand"
 	"strings"
 	"github.com/fatih/color"
+	"os"
+	"os/exec"
+	"runtime"
 )
 
 // Set colors for dice for use within the module
@@ -13,15 +16,44 @@ var y = color.New(color.BgBlack,color.FgHiYellow)
 var b = color.New(color.BgBlack,color.FgHiBlue)
 var p = color.New(color.BgBlack,color.FgHiMagenta)
 var r = color.New(color.BgBlack,color.FgHiRed)
-var k = color.New(color.BgWhite,color.FgBlack)
+var k = color.New()
 
 type rollResult struct {
 	success, failure, advantage, threat, triumph, despair int
 }
 
 
-// TODO - new method prettyPool - add slices for each letter to make a pretty string with colors to print out: Rolling <pretty pool>
-// TODO - On user input, can we change the color of the runes as they type? This would also be feedback on valid input
+func ClearScreen(){
+	if runtime.GOOS == "windows"{
+		cmd := exec.Command("cmd","/c","cls")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	} else {
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	}
+}
+
+func PrintPrettyPool(pool string) {
+	
+	for _,dice:=range pool {
+		switch dice {
+			case 'g':
+				g.Print("g")
+			case 'y':
+				y.Print("y")
+			case 'b':
+				b.Print("b")
+			case 'p':
+				p.Print("p")
+			case 'r':
+				r.Print("r")
+			case 'k':
+				k.Print("k")
+		}
+	}		
+}
 
 func rollDiceColor(dice rune) rollResult {
 	var result rollResult
@@ -156,9 +188,26 @@ func (res *rollResult) Add(res2 rollResult) {
 	res.despair += res2.despair
 }
 
-func (res *rollResult) Format() string {
+func (res *rollResult) PrintResult() {
 
-	return fmt.Sprintf("Success: %d \nFailure: %d \nAdvantage: %d \nThreat: %d \nTriumph: %d \nDespair: %d",res.success,res.failure,res.advantage,res.threat,res.triumph,res.despair)
+	if res.success > 0{
+		g.Printf("Success: %d\n",res.success)
+	}
+	if res.failure > 0{
+		p.Printf("Failure: %d\n",res.failure)
+	}
+	if res.advantage > 0 {
+		b.Printf("Advantage: %d\n", res.advantage)
+	}
+	if res.threat > 0 {
+		k.Printf("Threat: %d\n", res.threat)
+	}
+	if res.triumph > 0 {
+		y.Printf("Triumph: %d\n", res.triumph)
+	}
+	if res.despair > 0 {
+		r.Printf("Despair: %d\n", res.despair)
+	}
 }
 
 func RollPool(pool string) rollResult {
@@ -185,8 +234,23 @@ func validatePool(pool string) bool {
 
 	return true
 }
-
+func printValidDice(){
+	// Print all of the valid dice options with colors
+	g.Println("g = Green ability die")
+	y.Println("y = Yellow proficiency die")
+	b.Println("b = Blue boost die")
+	p.Println("p = Purple difficulty die")
+	r.Println("r = Red challenge die")
+	k.Println("k = Black setback die")
+}
 func main() {
+	ClearScreen()
+
+	fmt.Println("Genesys Dice Roller")
+	fmt.Println(`Enter a dice pool in a single string, e.g. "ggypp".`)
+	fmt.Println("Valid dice are:")
+	printValidDice()
+
 	var pool string
 
 	for pool!="exit" {
@@ -195,21 +259,19 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
+		ClearScreen()
 
 		if pool!="exit" {
 			if !validatePool(pool) {
 				fmt.Println("Invalid die pool. Valid values are:")
-				g.Println("g = Green ability die")
-				y.Println("y = Yellow proficiency die")
-				b.Println("b = Blue boost die")
-				p.Println("p = Purple difficulty die")
-				r.Println("r = Red challenge die")
-				k.Println("k = Black setback die")
+				printValidDice()
 			} else {
+				fmt.Print("Rolling ")
+				PrintPrettyPool(pool)
+				fmt.Print("...\n")
 				testRoll := RollPool(pool)
 				testRoll.Balance()
-				fmt.Println(testRoll)
-				fmt.Println(testRoll.Format())
+				testRoll.PrintResult()
 			}
 		}
 	}
