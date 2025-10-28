@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"errors"
 )
 
 // Set colors for dice for use within the module
@@ -18,10 +19,15 @@ var p = color.New(color.BgBlack,color.FgHiMagenta)
 var r = color.New(color.BgBlack,color.FgHiRed)
 var k = color.New()
 
-type rollResult struct {
+// TYPES
+type RollResult struct {
 	success, failure, advantage, threat, triumph, despair int
 }
 
+
+/* =================================================== */
+/* ==== Printing functions for use in the CLI app ==== */
+/* =================================================== */
 
 func ClearScreen(){
 	if runtime.GOOS == "windows"{
@@ -35,28 +41,68 @@ func ClearScreen(){
 	}
 }
 
+// Print all of the valid dice options with colors
+func PrintValidDice(){
+	g.Println("g = Green ability die")
+	y.Println("y = Yellow proficiency die")
+	b.Println("b = Blue boost die")
+	p.Println("p = Purple difficulty die")
+	r.Println("r = Red challenge die")
+	k.Println("k = Black setback die")
+}
+
+// Print a dice pool using the defined colors for each dice type
 func PrintPrettyPool(pool string) {
-	
 	for _,dice:=range pool {
 		switch dice {
-			case 'g':
-				g.Print("g")
-			case 'y':
-				y.Print("y")
-			case 'b':
-				b.Print("b")
-			case 'p':
-				p.Print("p")
-			case 'r':
-				r.Print("r")
-			case 'k':
-				k.Print("k")
+		case 'g':
+			g.Print("g")
+		case 'y':
+			y.Print("y")
+		case 'b':
+			b.Print("b")
+		case 'p':
+			p.Print("p")
+		case 'r':
+			r.Print("r")
+		case 'k':
+			k.Print("k")
 		}
 	}		
 }
 
-func rollDiceColor(dice rune) rollResult {
-	var result rollResult
+// Method to print the results of the roll, color coded, with a line for each type of result
+// Does not print 0 values (e.g. Threat: 0 would be omitted)
+func (res *RollResult) PrintResult() {
+
+	if res.success > 0{
+		g.Printf("Success: %d\n",res.success)
+	}
+	if res.failure > 0{
+		p.Printf("Failure: %d\n",res.failure)
+	}
+	if res.advantage > 0 {
+		b.Printf("Advantage: %d\n", res.advantage)
+	}
+	if res.threat > 0 {
+		k.Printf("Threat: %d\n", res.threat)
+	}
+	if res.triumph > 0 {
+		y.Printf("Triumph: %d\n", res.triumph)
+	}
+	if res.despair > 0 {
+		r.Printf("Despair: %d\n", res.despair)
+	}
+}
+
+/* =================================================== */
+/* = Exported Methods and functions for rolling dice = */
+/* =================================================== */
+
+// Rolls a single dice - if dice does not match a valid dice, it will be ignored, returning an empty result (all 0s)
+// Dice results for a corresponding d6, d8, and d12  are defined in the Genesys CRB, page 10
+func RollDiceColor(dice rune) RollResult {
+	var result RollResult
 	switch dice {
 		case 'g': // Green - Ability
 		num := rand.Intn(8)
@@ -149,7 +195,11 @@ func rollDiceColor(dice rune) rollResult {
 	return result
 }
 
-func (res *rollResult) Balance() {
+// Balance out the values of the results - Modifies the original RollResult
+// Successes vs Failures, Threat vs Advantage
+// Triumph and Despair do NOT cancel out
+// The success and failure portions of these are added in the roll function
+func (res *RollResult) Balance() {
 	// Success and failure
 	if res.success <= res.failure {
 		res.failure -= res.success
@@ -168,17 +218,11 @@ func (res *rollResult) Balance() {
 		res.threat = 0
 	}
 
-	// Triumph and Despair
-	if res.triumph <= res.despair {
-		res.despair -= res.triumph
-		res.triumph = 0
-	} else if res.triumph > res.despair {
-		res.triumph -= res.despair
-		res.despair = 0
-	}
 }
 
-func (res *rollResult) Add(res2 rollResult) {
+// Add the values of a RollResult to the existing RollResult
+// This can be used to combine results of multiple dice to get the result for the entire pool
+func (res *RollResult) Add(res2 RollResult) {
 
 	res.success += res2.success
 	res.advantage += res2.advantage
@@ -188,38 +232,6 @@ func (res *rollResult) Add(res2 rollResult) {
 	res.despair += res2.despair
 }
 
-func (res *rollResult) PrintResult() {
-
-	if res.success > 0{
-		g.Printf("Success: %d\n",res.success)
-	}
-	if res.failure > 0{
-		p.Printf("Failure: %d\n",res.failure)
-	}
-	if res.advantage > 0 {
-		b.Printf("Advantage: %d\n", res.advantage)
-	}
-	if res.threat > 0 {
-		k.Printf("Threat: %d\n", res.threat)
-	}
-	if res.triumph > 0 {
-		y.Printf("Triumph: %d\n", res.triumph)
-	}
-	if res.despair > 0 {
-		r.Printf("Despair: %d\n", res.despair)
-	}
-}
-
-func RollPool(pool string) rollResult {
-
-	var total rollResult
-
-	for _,char:=range pool {
-		total.Add(rollDiceColor(char))
-	}		
-
-	return total
-}
 
 // Returns false if any invalid dice runes are included in the string
 func validatePool(pool string) bool {
@@ -234,22 +246,34 @@ func validatePool(pool string) bool {
 
 	return true
 }
-func printValidDice(){
-	// Print all of the valid dice options with colors
-	g.Println("g = Green ability die")
-	y.Println("y = Yellow proficiency die")
-	b.Println("b = Blue boost die")
-	p.Println("p = Purple difficulty die")
-	r.Println("r = Red challenge die")
-	k.Println("k = Black setback die")
+
+// Evaluate a string and return the TOTAL (unbalanced) result
+// Throws error if pool contains invalid characters
+func RollPool(pool string) (RollResult, error) {
+
+	var total RollResult
+	valid := validatePool(pool)
+	if valid==false{
+		return total, errors.New("Invalid dice pool. Valid options are gybprk")
+
+	}
+	for _,char:=range pool {
+		total.Add(RollDiceColor(char))
+	}		
+	return total,nil
 }
+
+/* =================================================== */
+/* =========== CLI Dice Roller - main loop =========== */
+/* =================================================== */
+// This can funciton as an example of how to use the functions, or can be used on its own as a fully functional dice roller
 func main() {
 	ClearScreen()
 
 	fmt.Println("Genesys Dice Roller")
 	fmt.Println(`Enter a dice pool in a single string, e.g. "ggypp".`)
 	fmt.Println("Valid dice are:")
-	printValidDice()
+	PrintValidDice()
 
 	var pool string
 
@@ -262,18 +286,17 @@ func main() {
 		ClearScreen()
 
 		if pool!="exit" {
-			if !validatePool(pool) {
+			fmt.Print("Rolling ")
+			PrintPrettyPool(pool)
+			fmt.Print("...\n")
+			testRoll, err := RollPool(pool)
+			if err != nil{
 				fmt.Println("Invalid die pool. Valid values are:")
-				printValidDice()
-			} else {
-				fmt.Print("Rolling ")
-				PrintPrettyPool(pool)
-				fmt.Print("...\n")
-				testRoll := RollPool(pool)
+				PrintValidDice()
+			}else{
 				testRoll.Balance()
 				testRoll.PrintResult()
 			}
 		}
 	}
-
 }
