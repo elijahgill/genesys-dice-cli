@@ -286,14 +286,14 @@ func main() {
 		ClearScreen()
 
 		if pool!="exit" {
-			fmt.Print("Rolling ")
-			PrintPrettyPool(pool)
-			fmt.Print("...\n")
 			testRoll, err := RollPool(pool)
 			if err != nil{
 				fmt.Println("Invalid die pool. Valid values are:")
 				PrintValidDice()
 			}else{
+				fmt.Print("Rolling ")
+				PrintPrettyPool(pool)
+				fmt.Print("...\n")
 				testRoll.Balance()
 				testRoll.PrintResult()
 			}
