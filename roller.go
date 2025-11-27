@@ -22,7 +22,7 @@ type RollResult struct {
 // RollResult Methods
 	// *Add(res RollResult) - Adds the values from res to the calling RollResult - modifies the calling RollResult
 	// *Balance() - Cancels out all success, failures, threats and advantages - modifies the calling RollResult
-
+	// *PrintResult() Print the results of the roll, color coded, with a line for each type of result
 
 type Die []RollResult
 // Holds a RollResult for each face of the die
@@ -301,29 +301,6 @@ func (res *RollResult) Add(res2 RollResult) {
 	res.threat += res2.threat
 	res.triumph += res2.triumph
 	res.despair += res2.despair
-}
-
-// ***** String/Rune methods *****
-// Rolls a single dice by color - if dice does not match a valid dice, it will be ignored, returning an empty result (all 0s)
-// Dice results for a corresponding d6, d8, and d12  are defined in the Genesys CRB, page 10
-func RollDiceColor(dice rune) RollResult {
-	var result RollResult
-	switch dice {
-		case 'g': // Green - Ability
-		result=Ability.Roll()
-		case 'y': // Yellow - Profficiency
-		result=Proficiency.Roll()
-		case 'b': // Blue - Boost
-		result=Boost.Roll()
-		case 'p': // Purple - Difficulty
-		result=Difficulty.Roll()
-		case 'r': // Red - Challenge
-		result=Challenge.Roll()
-		case 'k': //Black - Setback
-		result=Setback.Roll()
-	}
-
-	return result
 }
 
 /* =================================================== */
