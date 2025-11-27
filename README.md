@@ -33,6 +33,7 @@ Holds a RollResult for each face of the die
 - Roll() - Selects a random side of the die and returns it as a RollResult
 
 **Example Usage**
+
 Standard dice types are already defined. You can add a custom dice type if desired.
 
 Dice types are defined based on the conversion tables for using standard numeric dice in the CRB:
